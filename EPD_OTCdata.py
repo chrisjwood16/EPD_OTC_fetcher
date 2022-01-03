@@ -20,9 +20,7 @@ monthsdict={
 	"Dec": "12"
 }
 
-
-urlhttp='https://'
-urlbase="opendata.nhsbsa.net/api/3/action/datastore_search_sql?resource_id="
+urlbase="https://opendata.nhsbsa.net/api/3/action/datastore_search_sql?resource_id="
 urlselect='&sql=SELECT BNF_DESCRIPTION, CHEMICAL_SUBSTANCE_BNF_DESCR, BNF_CHEMICAL_SUBSTANCE, QUANTITY, ITEMS, TOTAL_QUANTITY, ACTUAL_COST, NIC, YEAR_MONTH, PRACTICE_CODE '
 urlfrom='FROM '
 urlwhere=' WHERE `PRACTICE_CODE`='
@@ -37,7 +35,6 @@ def page_heading():
 	print ('                                      ')
 	print ('  OTC Dispensing data download tool   ')
 	print ('                                      ')
-	print ('')
 	print_seperator()
 	
 def print_seperator():
@@ -62,85 +59,34 @@ def check_available_datasets():
 	print_seperator()
 	return availabledata
 
-page_heading()
-print ('Loading datasets, please wait...')
-available_datasets=check_available_datasets()
-chooseendmonth=available_datasets[-1]
-choosestartmonth=available_datasets[-12]
-print (choosestartmonth)
-print (chooseendmonth)
-urlpracticecode=select_practice_code()
-print (practicename+' selected')
-print ('')
-
-
-
-choosestartmonth=input("Start month (mmyyyy): ")
-    if choosestartmonth not in available_datasets:
-        print ('Entered dataset not available - try again')
+def dateselector(available_datasets):
+    choosestartmonth=''
+    chooseendmonth=''
+    while choosestartmonth not in available_datasets:
         choosestartmonth=input("Start month (mmyyyy): ")
-	
-chooseendmonth=input("End month (mmyyyy): ")
-    if chooseendmonth not in available_datasets:
-        print ('Entered dataset not available - try again')
-        chooseendmonth=input("Start month (mmyyyy): ")
+    while chooseendmonth not in available_datasets:
+        chooseendmonth=input("End month (mmyyyy): ")
+    start = available_datasets.index(choosestartmonth)
+    end = available_datasets.index(chooseendmonth, start + 1) + 1
+    EPDmonths=[]
+    for day in available_datasets[start:end]:
+        dateformatted=str(day[2:6]) + str(day[0:2])
+        EPDmonths.append('EPD_' + dateformatted)
+    return EPDmonths
 
-page_heading()
-start = available_datasets.index(choosestartmonth)
-end = available_datasets.index(chooseendmonth, start + 1) + 1
-datasets=[]
-for day in available_datasets[start:end]:
-	dateformatted=str(day[2])+str(day[3])+str(day[4])+str(day[5])+str(day[0])+str(day[1])
-	#datasets.append('`EPD_'+dateformatted+'`')
-	datasets.append('EPD_'+dateformatted)
+def main():
+    page_heading()
+    print ('Loading datasets, please wait...')
+    available_datasets=check_available_datasets()
+    EPDmonths=dateselector(available_datasets)
+    urlpracticecode=select_practice_code()
+    print (urlpracticecode+' selected')
 
-DF_list= list()
-if (isinstance(urlpracticecode, str)):
-	for ds in datasets:
-		print ('Getting ' + ds)
-		urlfull=urlbase+ds+urlselect+urlfrom+'`'+ds+'`'+urlwhere+urlpracticecode
-		urlencoded=urlfull.replace(" ", "%20")
-		urlfinal=urlhttp+urlencoded
-		#print (urlfinal)
-		with urllib.request.urlopen(urlfinal) as url:
-			data = json.loads(url.read().decode())
-			#print (data)
-			if (data['result']['success']=="true"):
-				data=data['result']['result']['records']
-				data=json.dumps(data)
-				df = pandas.read_json(data)
-				df = df[['PRACTICE_CODE', 'BNF_DESCRIPTION', 'CHEMICAL_SUBSTANCE_BNF_DESCR', 'BNF_CHEMICAL_SUBSTANCE', 'YEAR_MONTH', 'ITEMS', 'QUANTITY', 'TOTAL_QUANTITY', 'NIC', 'ACTUAL_COST']]
-				DF_list.append(df)
-			else:
-				print ('Failed: ' + data['result']['message'])
 
-	dfFINAL = pandas.concat(DF_list)
-	practice=urlpracticecode.strip('"')
-	export_csv = dfFINAL.to_csv (practice+'.csv', index = None, header=True)
-else:
-	DF_list_full= list()
-	for pc in urlpracticecode:
-		print ('Getting ' + pc)
-		DF_list= list()
-		pcformatted='"'+pc+'"'
-		for ds in datasets:
-			print ('Getting ' + ds)
-			urlfull=urlbase+ds+urlselect+urlfrom+'`'+ds+'`'+urlwhere+pcformatted
-			urlencoded=urlfull.replace(" ", "%20")
-			urlfinal=urlhttp+urlencoded
-			with urllib.request.urlopen(urlfinal) as url:
-				data = json.loads(url.read().decode())
-				if (data['result']['success']=="true"):
-					data=data['result']['result']['records']
-					data=json.dumps(data)
-					df = pandas.read_json(data)
-					df = df[['PRACTICE_CODE', 'BNF_DESCRIPTION', 'CHEMICAL_SUBSTANCE_BNF_DESCR', 'YEAR_MONTH', 'ITEMS', 'QUANTITY', 'TOTAL_QUANTITY', 'NIC', 'ACTUAL_COST']]
-					DF_list.append(df)
-					DF_list_full.append(df)
-				else:
-					print ('Failed: ' + data['result']['message'])
 
-		dfFINAL = pandas.concat(DF_list)
-		export_csv = dfFINAL.to_csv (pc+'.csv', index = None, header=True)
-	dfFINAL = pandas.concat(DF_list_full)
-	export_csv = dfFINAL.to_csv ('HFP_finance'+'.csv', index = None, header=True)		
+if __name__ == "__main__":
+    main()
+
+
+
+
