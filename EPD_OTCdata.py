@@ -96,7 +96,10 @@ def SQLfetchdata(EPDmonths, urlpracticecode):
 
     df_otclist=pd.read_csv('OTCList.csv')
     df_otclist['OTC'] = 1
+
     dfFINAL=dfFINAL.merge(df_otclist, how='left', on='BNF_DESCRIPTION')
+
+    dfFINAL=dfFINAL[dfFINAL['OTC'] == 1]
 
     practice=urlpracticecode.strip('"')
     export_csv = dfFINAL.to_csv (practice+'.csv', index = None, header=True)
