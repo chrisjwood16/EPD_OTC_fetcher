@@ -20,7 +20,8 @@ monthsdict={
 	"Dec": "12"
 }
 
-urlbase="https://opendata.nhsbsa.net/api/3/action/datastore_search_sql?resource_id="
+urlhttp="https://"
+urlbase="opendata.nhsbsa.net/api/3/action/datastore_search_sql?resource_id="
 urlselect='&sql=SELECT BNF_DESCRIPTION, CHEMICAL_SUBSTANCE_BNF_DESCR, BNF_CHEMICAL_SUBSTANCE, QUANTITY, ITEMS, TOTAL_QUANTITY, ACTUAL_COST, NIC, YEAR_MONTH, PRACTICE_CODE '
 urlfrom='FROM '
 urlwhere=' WHERE `PRACTICE_CODE`='
@@ -74,6 +75,30 @@ def dateselector(available_datasets):
         EPDmonths.append('EPD_' + dateformatted)
     return EPDmonths
 
+def SQLfetchdata(EPDmonths, urlpracticecode):
+    DF_list= list()
+    for ds in EPDmonths:
+        print ('Getting ' + ds)
+        urlfull=urlbase+ds+urlselect+urlfrom+'`'+ds+'`'+urlwhere+urlpracticecode
+        urlencoded=urlfull.replace(" ", "%20")
+        urlfinal=urlhttp+urlencoded
+        with urllib.request.urlopen(urlfinal) as url:
+            data = json.loads(url.read().decode())
+            if (data['result']['success']=="true"):
+                data=data['result']['result']['records']
+                data=json.dumps(data)
+                df = pandas.read_json(data)
+                df = df[['PRACTICE_CODE', 'BNF_DESCRIPTION', 'CHEMICAL_SUBSTANCE_BNF_DESCR', 'BNF_CHEMICAL_SUBSTANCE', 'YEAR_MONTH', 'ITEMS', 'QUANTITY', 'TOTAL_QUANTITY', 'NIC', 'ACTUAL_COST']]
+                DF_list.append(df)
+            else:
+                print ('Failed: ' + data['result']['message'])
+    dfFINAL = pandas.concat(DF_list)
+
+
+    practice=urlpracticecode.strip('"')
+    export_csv = dfFINAL.to_csv (practice+'.csv', index = None, header=True)
+
+
 def main():
     page_heading()
     print ('Loading datasets, please wait...')
@@ -81,6 +106,7 @@ def main():
     EPDmonths=dateselector(available_datasets)
     urlpracticecode=select_practice_code()
     print (urlpracticecode+' selected')
+    SQLfetchdata(EPDmonths, urlpracticecode)
 
 
 
