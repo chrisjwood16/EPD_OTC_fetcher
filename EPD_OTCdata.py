@@ -2,7 +2,7 @@ import os
 os.system('cls')
 import urllib.request, json, urllib.parse, requests
 from bs4 import BeautifulSoup
-import pandas
+import pandas as pd
 import csv
 import json
 monthsdict={
@@ -87,13 +87,16 @@ def SQLfetchdata(EPDmonths, urlpracticecode):
             if (data['result']['success']=="true"):
                 data=data['result']['result']['records']
                 data=json.dumps(data)
-                df = pandas.read_json(data)
+                df = pd.read_json(data)
                 df = df[['PRACTICE_CODE', 'BNF_DESCRIPTION', 'CHEMICAL_SUBSTANCE_BNF_DESCR', 'BNF_CHEMICAL_SUBSTANCE', 'YEAR_MONTH', 'ITEMS', 'QUANTITY', 'TOTAL_QUANTITY', 'NIC', 'ACTUAL_COST']]
                 DF_list.append(df)
             else:
                 print ('Failed: ' + data['result']['message'])
-    dfFINAL = pandas.concat(DF_list)
+    dfFINAL = pd.concat(DF_list)
 
+    df_otclist=pd.read_csv('OTCList.csv')
+    df_otclist['OTC'] = 1
+    dfFINAL=dfFINAL.merge(df_otclist, how='left', on='BNF_DESCRIPTION')
 
     practice=urlpracticecode.strip('"')
     export_csv = dfFINAL.to_csv (practice+'.csv', index = None, header=True)
