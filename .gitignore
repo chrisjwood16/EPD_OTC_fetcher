@@ -1,0 +1,5 @@
+#Ignore datasets file - will download new copy at runtime
+datasets
+#Ignore all CSV files except OTClist.csv
+*.csv
+!OTCList.csv
