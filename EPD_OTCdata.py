@@ -1,10 +1,13 @@
 import os
-os.system('cls')
 import urllib.request, json, urllib.parse, requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import csv
 import json
+import pickle
+from datetime import datetime
+from os.path import exists
+from os.path import getmtime
 monthsdict={
 	"Jan": "01",
 	"Feb": "02",
@@ -47,18 +50,56 @@ def select_practice_code():
 	return urlpracticecode
 
 def check_available_datasets():
+    #See if cache of available datasets exists
+    if (exists("datasets")):
+        #Get modified timestamp
+        modifiedtimestamp=getmtime("datasets")
+        #Convert timestamp to readable date time
+        modifieddatetime=datetime.utcfromtimestamp(modifiedtimestamp).strftime('%d-%m-%Y %H:%M:%S')
+        print_seperator()
+        print ('Dataset list last updated ' + modifieddatetime)
+        scrapeoption=''
+        while not (scrapeoption.upper()=='Y' or scrapeoption.upper()=='N'):
+            scrapeoption=input("Do you want to update dataset list? (Y/N): ")
+        if (scrapeoption.upper()=='Y'):
+        	scrape_available_datasets()
+    else:	
+        #Scrape dataset info when no cache available
+        print ('No dataset information exists')
+        scrape_available_datasets()
+    availabledata=read_dataset_file()
+    return availabledata
+
+def read_dataset_file():
+    availabledata=read_from_pickle('datasets')
+    for monthyear in availabledata:
+        print (monthyear)
+    print_seperator()
+    return availabledata
+
+def scrape_available_datasets():
     #Scrape EPD list page to find listed months with data
-	availabledata=[]
-	page = requests.get('https://opendata.nhsbsa.net/dataset/english-prescribing-data-epd')
-	soup = BeautifulSoup(page.content, 'html.parser')
-	for el in soup.find_all('a', attrs={'class': 'heading'}):
-		listitem=el.get_text().replace('\r', '').replace('\n', '').replace('    English Prescribing Dataset (EPD) - ', '')
-		listsplit=listitem.split()
-		availabledata.append(str(monthsdict[listsplit[0]])+str(listsplit[1]))
-	for monthyear in availabledata:
-		print (monthyear)
-	print_seperator()
-	return availabledata
+    print ('Loading datasets, please wait...')
+    availabledata=[]
+    page = requests.get('https://opendata.nhsbsa.net/dataset/english-prescribing-data-epd')
+    soup = BeautifulSoup(page.content, 'html.parser')
+    for el in soup.find_all('a', attrs={'class': 'heading'}):
+        listitem=el.get_text().replace('\r', '').replace('\n', '').replace('    English Prescribing Dataset (EPD) - ', '')
+        listsplit=listitem.split()
+        availabledata.append(str(monthsdict[listsplit[0]])+str(listsplit[1]))
+    write_to_pickle(availabledata, 'datasets')
+
+def write_to_pickle(listtostore, filenamestore):
+    picklefile = open(filenamestore, 'ab')    
+    # source, destination
+    pickle.dump(listtostore, picklefile)                     
+    picklefile.close()
+
+def read_from_pickle(filenamestore):
+    picklefile = open(filenamestore, 'rb')     
+    pickledata = pickle.load(picklefile)
+    picklefile.close()
+    return pickledata
 
 def dateselector(available_datasets):
     choosestartmonth=''
@@ -107,7 +148,6 @@ def SQLfetchdata(EPDmonths, urlpracticecode):
 
 def main():
     page_heading()
-    print ('Loading datasets, please wait...')
     available_datasets=check_available_datasets()
     EPDmonths=dateselector(available_datasets)
     urlpracticecode=select_practice_code()
